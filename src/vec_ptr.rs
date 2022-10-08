@@ -1,3 +1,5 @@
+use std::{fmt::Debug, ptr};
+
 #[derive(Debug, Clone, Default)]
 pub struct VecPtr<T> {
     ptrs: Vec<*mut T>,
@@ -5,7 +7,7 @@ pub struct VecPtr<T> {
     len: usize, // Length of vectors
 }
 
-impl<T> VecPtr<T> {
+impl<T: Debug> VecPtr<T> {
     pub fn new() -> Self {
         VecPtr {
             ptrs: Vec::new(),
@@ -21,9 +23,15 @@ impl<T> VecPtr<T> {
         self.ptrs.push(ptr);
     }
 
+    pub fn insert(&mut self, idx: usize, mut v: T) {
+        self.ptrs.insert(idx, &mut v as *mut T);
+        self.raw_vals.push(v);
+        self.len += 1;
+    }
+
     pub fn remove(&mut self, idx: usize) {
-        self.ptrs.remove(idx);
-        self.raw_vals.remove(idx);
+        let r_ptr = self.ptrs.remove(idx);
+        self.raw_vals.retain(|v| v as *const T != r_ptr);
         self.len -= 1;
     }
 
@@ -35,8 +43,16 @@ impl<T> VecPtr<T> {
     }
 
     pub fn swap(&mut self, idx_1: usize, idx_2: usize) {
+        let p1 = ptr::addr_of_mut!(self.ptrs[idx_1]);
+        let p2 = ptr::addr_of_mut!(self.ptrs[idx_2]);
+
         unsafe {
-            std::ptr::swap(&mut self.ptrs[idx_1], &mut self.ptrs[idx_2]);
+            println!("{:?}", *p1);
+            //println!("{:?}", *self.ptrs[idx_1]);
+            ptr::swap(p1, p2);
+            for v in self.raw_vals.iter() {
+                println!("{:?}", v as *const T);
+            }
         }
     }
 
@@ -44,7 +60,7 @@ impl<T> VecPtr<T> {
         unsafe { *self.ptrs[idx] = new_v }
     }
 
-    pub fn get_val(&self, idx: usize) -> &T {
+    pub fn get(&self, idx: usize) -> &T {
         unsafe { &*self.ptrs[idx] }
     }
 }
