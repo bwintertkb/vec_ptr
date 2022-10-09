@@ -1,5 +1,6 @@
 use std::{
     fmt::Debug,
+    ops::Index,
     ptr,
     slice::{Iter, IterMut},
 };
@@ -18,8 +19,14 @@ impl<T: Debug> VecPtr<T> {
         }
     }
 
+    pub fn with_capacity(size: usize) -> Self {
+        VecPtr {
+            ptrs: Vec::with_capacity(size),
+            raw_vals: Vec::with_capacity(size),
+        }
+    }
+
     pub fn push(&mut self, v: T) {
-        //let a: i32 = "str";
         self.raw_vals.push(v);
         let l = self.raw_vals.len();
         let ptr: *mut T = &mut self.raw_vals[l - 1] as *mut T;
@@ -60,8 +67,18 @@ impl<T: Debug> VecPtr<T> {
         unsafe { *self.ptrs[idx] = new_v }
     }
 
-    pub fn get(&self, idx: usize) -> &T {
-        unsafe { &*self.ptrs[idx] }
+    pub fn get(&self, idx: usize) -> Option<&T> {
+        if idx >= self.ptrs.len() {
+            return None;
+        }
+        unsafe { Some(&*self.ptrs[idx]) }
+    }
+
+    pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
+        if idx >= self.ptrs.len() {
+            return None;
+        }
+        unsafe { Some(&mut *self.ptrs[idx]) }
     }
 
     pub fn iter(&self) -> Iter<'_, *mut T> {
@@ -98,5 +115,102 @@ impl<T> Iterator for VecPtrIntoIter<T> {
         let val = self.ptrs[self.idx];
         self.idx += 1;
         Some(val)
+    }
+}
+
+impl<T> Index<usize> for VecPtr<T> {
+    type Output = *mut T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.ptrs[index]
+    }
+}
+
+#[macro_export]
+macro_rules! vec_ptr {
+    ($($element:expr),*) => {{
+        #[allow(unused_mut)]
+        let mut v = VecPtr::with_capacity($crate::count![@COUNT; $($element),*]);
+        $(
+            v.push($element);
+        )*
+        v
+    }};
+    ($($element:expr,)*) => {{
+        $crate::vec_ptr![$($element),*]
+    }};
+    ($element:expr; $count:expr) => {{
+        let count = $count;
+        let mut v = VecPtr::with_capacity(count);
+        let x = $element;
+        for _ in 0..count {
+            v.push(x.clone());
+        }
+        v
+    }};
+
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! count {
+    (@COUNT; $($element:expr),*) => {
+        <[()]>::len(&[$($crate::count![@SUBST; $element]),*])
+    };
+
+    (@SUBST; $_element:expr) => {
+        ()
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_vec_ptr_macro() {
+        let v_ptr: VecPtr<u32> = vec_ptr![];
+        assert!(v_ptr.ptrs.is_empty());
+        assert!(v_ptr.raw_vals.is_empty());
+    }
+
+    #[test]
+    fn test_single_entry_vec_ptr_macro() {
+        let v_ptr: VecPtr<u32> = vec_ptr!(1);
+
+        assert!(!v_ptr.ptrs.is_empty());
+        assert!(!v_ptr.raw_vals.is_empty());
+        assert_eq!(v_ptr.ptrs.len(), 1);
+        assert_eq!(v_ptr.raw_vals.len(), 1);
+    }
+
+    #[test]
+    fn test_double_entry_vec_ptr_macro() {
+        let v_ptr: VecPtr<u32> = vec_ptr!(1, 2);
+
+        assert!(!v_ptr.ptrs.is_empty());
+        assert!(!v_ptr.raw_vals.is_empty());
+        assert_eq!(v_ptr.ptrs.len(), 2);
+        assert_eq!(v_ptr.raw_vals.len(), 2);
+    }
+
+    #[test]
+    fn test_trailing_vec_ptr_macro() {
+        let v_ptr: VecPtr<u32> = vec_ptr!(1, 2,);
+
+        assert!(!v_ptr.ptrs.is_empty());
+        assert!(!v_ptr.raw_vals.is_empty());
+        assert_eq!(v_ptr.ptrs.len(), 2);
+        assert_eq!(v_ptr.raw_vals.len(), 2);
+    }
+
+    #[test]
+    fn test_count_vec_ptr_macro() {
+        let v_ptr: VecPtr<u32> = vec_ptr!(1; 3);
+
+        assert!(!v_ptr.ptrs.is_empty());
+        assert!(!v_ptr.raw_vals.is_empty());
+        assert_eq!(v_ptr.ptrs.len(), 3);
+        assert_eq!(v_ptr.raw_vals.len(), 3);
     }
 }
