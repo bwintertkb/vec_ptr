@@ -1,7 +1,12 @@
 [package]
-name = "vec_ptr"
-version = "0.1.0"
+authors = ["bwinter"]
+description = "An unsafe vector that uses raw pointers to perform standard vector operations"
+documentation = "https://docs.rs/vec_ptr/0.1.0/vec_ptr/"
 edition = "2021"
+license = "MIT"
+name = "vec_ptr"
+repository = "https://github.com/bwintertkb/vec_ptr"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

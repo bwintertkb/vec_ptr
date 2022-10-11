@@ -5,13 +5,15 @@ use std::{
     slice::{Iter, IterMut},
 };
 
+/// A vector that operates on raw pointers. It's a normal vector, just a little bit more unsafe...
 #[derive(Debug, Clone, Default)]
 pub struct VecPtr<T> {
     ptrs: Vec<*mut T>,
     raw_vals: Vec<T>,
 }
 
-impl<T: Debug> VecPtr<T> {
+impl<T> VecPtr<T> {
+    /// Constructor for the VecPtr struct
     pub fn new() -> Self {
         VecPtr {
             ptrs: Vec::new(),
@@ -19,6 +21,7 @@ impl<T: Debug> VecPtr<T> {
         }
     }
 
+    /// Define a VecPtr with a predefined size
     pub fn with_capacity(size: usize) -> Self {
         VecPtr {
             ptrs: Vec::with_capacity(size),
@@ -26,6 +29,7 @@ impl<T: Debug> VecPtr<T> {
         }
     }
 
+    /// Push a value to the end of the VecPtr
     pub fn push(&mut self, v: T) {
         self.raw_vals.push(v);
         let l = self.raw_vals.len();
@@ -33,40 +37,41 @@ impl<T: Debug> VecPtr<T> {
         self.ptrs.push(ptr);
     }
 
+    /// Insert a value at a user defined index
     pub fn insert(&mut self, idx: usize, mut v: T) {
         self.ptrs.insert(idx, &mut v as *mut T);
         self.raw_vals.push(v);
     }
 
+    /// Remove a value at a user defined index
     pub fn remove(&mut self, idx: usize) {
         let r_ptr = self.ptrs.remove(idx);
         self.raw_vals.retain(|v| v as *const T != r_ptr);
     }
 
+    /// Remove a value from the end of the VecPtr
     pub fn pop(&mut self) -> Option<*mut T> {
         let ptr = self.ptrs.pop();
         self.raw_vals.pop();
         ptr
     }
 
+    /// Swap values in the VecPtr
     pub fn swap(&mut self, idx_1: usize, idx_2: usize) {
         let p1 = ptr::addr_of_mut!(self.ptrs[idx_1]);
         let p2 = ptr::addr_of_mut!(self.ptrs[idx_2]);
 
         unsafe {
-            println!("{:?}", *p1);
-            //println!("{:?}", *self.ptrs[idx_1]);
             ptr::swap(p1, p2);
-            for v in self.raw_vals.iter() {
-                println!("{:?}", v as *const T);
-            }
         }
     }
 
+    /// Update a value in the VecPtr
     pub fn update(&mut self, idx: usize, new_v: T) {
         unsafe { *self.ptrs[idx] = new_v }
     }
 
+    /// Get an immutable value from the VecPtr
     pub fn get(&self, idx: usize) -> Option<&T> {
         if idx >= self.ptrs.len() {
             return None;
@@ -74,6 +79,7 @@ impl<T: Debug> VecPtr<T> {
         unsafe { Some(&*self.ptrs[idx]) }
     }
 
+    /// Get an mutable value from the VecPtr
     pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
         if idx >= self.ptrs.len() {
             return None;
@@ -81,10 +87,12 @@ impl<T: Debug> VecPtr<T> {
         unsafe { Some(&mut *self.ptrs[idx]) }
     }
 
+    /// Convert VecPtr to an borrowed iterator
     pub fn iter(&self) -> Iter<'_, *mut T> {
         self.ptrs.iter()
     }
 
+    /// Convert VecPtr to a owned iterator
     pub fn iter_mut(&mut self) -> IterMut<'_, *mut T> {
         self.ptrs.iter_mut()
     }
@@ -126,6 +134,7 @@ impl<T> Index<usize> for VecPtr<T> {
     }
 }
 
+/// A declarative macro that allows for the create of a VecPtr object.
 #[macro_export]
 macro_rules! vec_ptr {
     ($($element:expr),*) => {{
